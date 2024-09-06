@@ -100,7 +100,7 @@ import {
   signalAbort,
 } from "./03_abort_signal.js";
 
-import { createFilteredInspectProxy } from "ext:deno_console/01_console.js";
+import { privateInspect } from "ext:deno_console/01_console.js";
 import { assert, AssertionError } from "./00_infra.js";
 
 /** @template T */
@@ -4995,18 +4995,10 @@ class ByteLengthQueuingStrategy {
   }
 
   [SymbolFor("Deno.privateCustomInspect")](inspect, inspectOptions) {
-    return inspect(
-      createFilteredInspectProxy({
-        object: this,
-        evaluate: ObjectPrototypeIsPrototypeOf(
-          ByteLengthQueuingStrategyPrototype,
-          this,
-        ),
-        keys: [
-          "highWaterMark",
-          "size",
-        ],
-      }),
+    return privateInspect(
+      this,
+      ["highWaterMark", "size"],
+      inspect,
       inspectOptions,
     );
   }
@@ -5052,18 +5044,10 @@ class CountQueuingStrategy {
   }
 
   [SymbolFor("Deno.privateCustomInspect")](inspect, inspectOptions) {
-    return inspect(
-      createFilteredInspectProxy({
-        object: this,
-        evaluate: ObjectPrototypeIsPrototypeOf(
-          CountQueuingStrategyPrototype,
-          this,
-        ),
-        keys: [
-          "highWaterMark",
-          "size",
-        ],
-      }),
+    return privateInspect(
+      this,
+      ["highWaterMark", "size"],
+      inspect,
       inspectOptions,
     );
   }
@@ -5403,17 +5387,7 @@ class ReadableStream {
   }
 
   [SymbolFor("Deno.privateCustomInspect")](inspect, inspectOptions) {
-    return inspect(
-      createFilteredInspectProxy({
-        object: this,
-        evaluate: ObjectPrototypeIsPrototypeOf(
-          ReadableStreamPrototype,
-          this,
-        ),
-        keys: ["locked"],
-      }),
-      inspectOptions,
-    );
+    return privateInspect(this, ["locked"], inspect, inspectOptions);
   }
 }
 
@@ -5525,17 +5499,7 @@ class ReadableStreamDefaultReader {
   }
 
   [SymbolFor("Deno.privateCustomInspect")](inspect, inspectOptions) {
-    return inspect(
-      createFilteredInspectProxy({
-        object: this,
-        evaluate: ObjectPrototypeIsPrototypeOf(
-          ReadableStreamDefaultReaderPrototype,
-          this,
-        ),
-        keys: ["closed"],
-      }),
-      inspectOptions,
-    );
+    return privateInspect(this, ["closed"], inspect, inspectOptions);
   }
 }
 
@@ -5695,17 +5659,7 @@ class ReadableStreamBYOBReader {
   }
 
   [SymbolFor("Deno.privateCustomInspect")](inspect, inspectOptions) {
-    return inspect(
-      createFilteredInspectProxy({
-        object: this,
-        evaluate: ObjectPrototypeIsPrototypeOf(
-          ReadableStreamBYOBReaderPrototype,
-          this,
-        ),
-        keys: ["closed"],
-      }),
-      inspectOptions,
-    );
+    return privateInspect(this, ["closed"], inspect, inspectOptions);
   }
 }
 
@@ -5921,17 +5875,7 @@ class ReadableByteStreamController {
   }
 
   [SymbolFor("Deno.privateCustomInspect")](inspect, inspectOptions) {
-    return inspect(
-      createFilteredInspectProxy({
-        object: this,
-        evaluate: ObjectPrototypeIsPrototypeOf(
-          ReadableByteStreamControllerPrototype,
-          this,
-        ),
-        keys: ["desiredSize"],
-      }),
-      inspectOptions,
-    );
+    return privateInspect(this, ["desiredSize"], inspect, inspectOptions);
   }
 
   /**
@@ -6075,17 +6019,7 @@ class ReadableStreamDefaultController {
   }
 
   [SymbolFor("Deno.privateCustomInspect")](inspect, inspectOptions) {
-    return inspect(
-      createFilteredInspectProxy({
-        object: this,
-        evaluate: ObjectPrototypeIsPrototypeOf(
-          ReadableStreamDefaultControllerPrototype,
-          this,
-        ),
-        keys: ["desiredSize"],
-      }),
-      inspectOptions,
-    );
+    return privateInspect(this, ["desiredSize"], inspect, inspectOptions);
   }
 
   /**
@@ -6237,15 +6171,10 @@ class TransformStream {
   }
 
   [SymbolFor("Deno.privateCustomInspect")](inspect, inspectOptions) {
-    return inspect(
-      createFilteredInspectProxy({
-        object: this,
-        evaluate: ObjectPrototypeIsPrototypeOf(
-          TransformStreamPrototype,
-          this,
-        ),
-        keys: ["readable", "writable"],
-      }),
+    return privateInspect(
+      this,
+      ["readable", "writable"],
+      inspect,
       inspectOptions,
     );
   }
@@ -6314,17 +6243,7 @@ class TransformStreamDefaultController {
   }
 
   [SymbolFor("Deno.privateCustomInspect")](inspect, inspectOptions) {
-    return inspect(
-      createFilteredInspectProxy({
-        object: this,
-        evaluate: ObjectPrototypeIsPrototypeOf(
-          TransformStreamDefaultControllerPrototype,
-          this,
-        ),
-        keys: ["desiredSize"],
-      }),
-      inspectOptions,
-    );
+    return privateInspect(this, ["desiredSize"], inspect, inspectOptions);
   }
 }
 
@@ -6465,17 +6384,7 @@ class WritableStream {
   }
 
   [SymbolFor("Deno.privateCustomInspect")](inspect, inspectOptions) {
-    return inspect(
-      createFilteredInspectProxy({
-        object: this,
-        evaluate: ObjectPrototypeIsPrototypeOf(
-          WritableStreamPrototype,
-          this,
-        ),
-        keys: ["locked"],
-      }),
-      inspectOptions,
-    );
+    return privateInspect(this, ["locked"], inspect, inspectOptions);
   }
 }
 
@@ -6610,19 +6519,10 @@ class WritableStreamDefaultWriter {
   }
 
   [SymbolFor("Deno.privateCustomInspect")](inspect, inspectOptions) {
-    return inspect(
-      createFilteredInspectProxy({
-        object: this,
-        evaluate: ObjectPrototypeIsPrototypeOf(
-          WritableStreamDefaultWriterPrototype,
-          this,
-        ),
-        keys: [
-          "closed",
-          "desiredSize",
-          "ready",
-        ],
-      }),
+    return privateInspect(
+      this,
+      ["closed", "desiredSize", "ready"],
+      inspect,
       inspectOptions,
     );
   }
@@ -6684,17 +6584,7 @@ class WritableStreamDefaultController {
   }
 
   [SymbolFor("Deno.privateCustomInspect")](inspect, inspectOptions) {
-    return inspect(
-      createFilteredInspectProxy({
-        object: this,
-        evaluate: ObjectPrototypeIsPrototypeOf(
-          WritableStreamDefaultControllerPrototype,
-          this,
-        ),
-        keys: ["signal"],
-      }),
-      inspectOptions,
-    );
+    return privateInspect(this, ["signal"], inspect, inspectOptions);
   }
 
   /**
