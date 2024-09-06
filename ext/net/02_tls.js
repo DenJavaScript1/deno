@@ -27,8 +27,8 @@ import { Conn, Listener, validatePort } from "ext:deno_net/01_net.js";
 class TlsConn extends Conn {
   #rid = 0;
 
-  constructor(rid, remoteAddr, localAddr) {
-    super(rid, remoteAddr, localAddr);
+  constructor(rid, remoteAddr, localAddr, preventCloseOnEOF) {
+    super(rid, remoteAddr, localAddr, preventCloseOnEOF);
     ObjectDefineProperty(this, internalRidSymbol, {
       __proto__: null,
       enumerable: false,
@@ -64,6 +64,7 @@ async function connectTls({
   key = undefined,
   keyFile = undefined,
   privateKey = undefined,
+  preventCloseOnEOF = false,
 }) {
   if (transport !== "tcp") {
     throw new TypeError(`Unsupported transport: '${transport}'`);
@@ -102,7 +103,7 @@ async function connectTls({
   );
   localAddr.transport = "tcp";
   remoteAddr.transport = "tcp";
-  return new TlsConn(rid, remoteAddr, localAddr);
+  return new TlsConn(rid, remoteAddr, localAddr, preventCloseOnEOF);
 }
 
 class TlsListener extends Listener {
@@ -127,13 +128,13 @@ class TlsListener extends Listener {
     return this.#rid;
   }
 
-  async accept() {
+  async accept({ preventCloseOnEOF = false } = { __proto__: null }) {
     const { 0: rid, 1: localAddr, 2: remoteAddr } = await op_net_accept_tls(
       this.#rid,
     );
     localAddr.transport = "tcp";
     remoteAddr.transport = "tcp";
-    return new TlsConn(rid, remoteAddr, localAddr);
+    return new TlsConn(rid, remoteAddr, localAddr, preventCloseOnEOF);
   }
 }
 
@@ -283,6 +284,7 @@ async function startTls(
     hostname = "127.0.0.1",
     caCerts = [],
     alpnProtocols = undefined,
+    preventCloseOnEOF = false,
   } = { __proto__: null },
 ) {
   const { 0: rid, 1: localAddr, 2: remoteAddr } = op_tls_start({
@@ -291,7 +293,7 @@ async function startTls(
     caCerts,
     alpnProtocols,
   });
-  return new TlsConn(rid, remoteAddr, localAddr);
+  return new TlsConn(rid, remoteAddr, localAddr, preventCloseOnEOF);
 }
 
 const resolverSymbol = SymbolFor("unstableSniResolver");

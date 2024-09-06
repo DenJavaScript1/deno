@@ -97,10 +97,12 @@ class Conn {
   #unref = false;
   #pendingReadPromises = new SafeSet();
 
+  #preventCloseOnEOF;
+
   #readable;
   #writable;
 
-  constructor(rid, remoteAddr, localAddr) {
+  constructor(rid, remoteAddr, localAddr, preventCloseOnEOF) {
     if (internals.future) {
       ObjectDefineProperty(this, "rid", {
         __proto__: null,
@@ -116,6 +118,7 @@ class Conn {
     this.#rid = rid;
     this.#remoteAddr = remoteAddr;
     this.#localAddr = localAddr;
+    this.#preventCloseOnEOF = preventCloseOnEOF;
   }
 
   get rid() {
@@ -167,7 +170,10 @@ class Conn {
 
   get readable() {
     if (this.#readable === undefined) {
-      this.#readable = readableStreamForRidUnrefable(this.#rid);
+      this.#readable = readableStreamForRidUnrefable(
+        this.#rid,
+        this.#preventCloseOnEOF,
+      );
       if (this.#unref) {
         readableStreamForRidUnrefableUnref(this.#readable);
       }
@@ -213,8 +219,8 @@ class Conn {
 class TcpConn extends Conn {
   #rid = 0;
 
-  constructor(rid, remoteAddr, localAddr) {
-    super(rid, remoteAddr, localAddr);
+  constructor(rid, remoteAddr, localAddr, preventCloseOnEOF) {
+    super(rid, remoteAddr, localAddr, preventCloseOnEOF);
     ObjectDefineProperty(this, internalRidSymbol, {
       __proto__: null,
       enumerable: false,
@@ -244,8 +250,8 @@ class TcpConn extends Conn {
 class UnixConn extends Conn {
   #rid = 0;
 
-  constructor(rid, remoteAddr, localAddr) {
-    super(rid, remoteAddr, localAddr);
+  constructor(rid, remoteAddr, localAddr, preventCloseOnEOF) {
+    super(rid, remoteAddr, localAddr, preventCloseOnEOF);
     ObjectDefineProperty(this, internalRidSymbol, {
       __proto__: null,
       enumerable: false,
@@ -300,7 +306,7 @@ class Listener {
     return this.#addr;
   }
 
-  async accept() {
+  async accept({ preventCloseOnEOF = false } = { __proto__: null }) {
     let promise;
     switch (this.addr.transport) {
       case "tcp":
@@ -319,22 +325,23 @@ class Listener {
     if (this.addr.transport == "tcp") {
       localAddr.transport = "tcp";
       remoteAddr.transport = "tcp";
-      return new TcpConn(rid, remoteAddr, localAddr);
+      return new TcpConn(rid, remoteAddr, localAddr, preventCloseOnEOF);
     } else if (this.addr.transport == "unix") {
       return new UnixConn(
         rid,
         { transport: "unix", path: remoteAddr },
         { transport: "unix", path: localAddr },
+        preventCloseOnEOF,
       );
     } else {
       throw new Error("unreachable");
     }
   }
 
-  async next() {
+  async next(options) {
     let conn;
     try {
-      conn = await this.accept();
+      conn = await this.accept(options);
     } catch (error) {
       if (
         ObjectPrototypeIsPrototypeOf(BadResourcePrototype, error) ||
@@ -624,7 +631,12 @@ async function connect(args) {
       );
       localAddr.transport = "tcp";
       remoteAddr.transport = "tcp";
-      return new TcpConn(rid, remoteAddr, localAddr);
+      return new TcpConn(
+        rid,
+        remoteAddr,
+        localAddr,
+        args.preventCloseOnEOF ?? false,
+      );
     }
     case "unix": {
       const { 0: rid, 1: localAddr, 2: remoteAddr } = await op_net_connect_unix(
@@ -634,6 +646,7 @@ async function connect(args) {
         rid,
         { transport: "unix", path: remoteAddr },
         { transport: "unix", path: localAddr },
+        args.preventCloseOnEOF ?? false,
       );
     }
     default:

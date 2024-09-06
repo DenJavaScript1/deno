@@ -543,7 +543,11 @@ function openSync(
     options,
   );
 
-  return new FsFile(rid, SymbolFor("Deno.internal.FsFile"));
+  return new FsFile(
+    rid,
+    options.preventCloseOnEOF ?? false,
+    SymbolFor("Deno.internal.FsFile"),
+  );
 }
 
 async function open(
@@ -556,40 +560,51 @@ async function open(
     options,
   );
 
-  return new FsFile(rid, SymbolFor("Deno.internal.FsFile"));
+  return new FsFile(
+    rid,
+    options.preventCloseOnEOF ?? false,
+    SymbolFor("Deno.internal.FsFile"),
+  );
 }
 
-function createSync(path) {
+function createSync(path, options) {
   return openSync(path, {
     read: true,
     write: true,
     truncate: true,
     create: true,
+    mode: options?.mode,
+    preventCloseOnEOF: options?.preventCloseOnEOF,
   });
 }
 
-function create(path) {
+function create(path, options) {
   return open(path, {
     read: true,
     write: true,
     truncate: true,
     create: true,
+    mode: options?.mode,
+    preventCloseOnEOF: options?.preventCloseOnEOF,
   });
 }
 
 class FsFile {
   #rid = 0;
 
+  #preventCloseOnEOF;
+
   #readable;
   #writable;
 
-  constructor(rid, symbol) {
+  constructor(rid, preventCloseOnEOF, symbol) {
     ObjectDefineProperty(this, internalRidSymbol, {
       __proto__: null,
       enumerable: false,
       value: rid,
     });
     this.#rid = rid;
+    this.#preventCloseOnEOF = preventCloseOnEOF;
     if (!symbol || symbol !== SymbolFor("Deno.internal.FsFile")) {
       throw new TypeError(
         "`Deno.FsFile` cannot be constructed, use `Deno.open()` or `Deno.openSync()` instead.",
@@ -661,7 +676,7 @@ class FsFile {
 
   get readable() {
     if (this.#readable === undefined) {
-      this.#readable = readableStreamForRid(this.#rid);
+      this.#readable = readableStreamForRid(this.#rid, this.#preventCloseOnEOF);
     }
     return this.#readable;
   }
