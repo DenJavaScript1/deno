@@ -20,6 +20,7 @@ use deno_path_util::url_to_file_path;
 use deno_terminal::colors;
 use fqdn::FQDN;
 use once_cell::sync::Lazy;
+use prompter::permission_prompt2;
 use std::borrow::Cow;
 use std::collections::HashSet;
 use std::ffi::OsStr;
@@ -179,6 +180,44 @@ impl PermissionState {
             .unwrap_or_default(),
         );
         match permission_prompt(&msg, name, api_name, true) {
+          PromptResponse::Allow => {
+            Self::log_perm_access(name, info);
+            (Ok(()), true, false)
+          }
+          PromptResponse::AllowAll => {
+            Self::log_perm_access(name, info);
+            (Ok(()), true, true)
+          }
+          PromptResponse::Deny => (Err(Self::error(name, info)), true, false),
+        }
+      }
+      _ => (Err(Self::error(name, info)), false, false),
+    }
+  }
+
+  #[inline]
+  fn check3(
+    self,
+    name: &str,
+    api_name: Option<&str>,
+    info: impl Fn() -> Option<String>,
+    prompt: bool,
+    stack: Option<&str>,
+  ) -> (Result<(), AnyError>, bool, bool) {
+    match self {
+      PermissionState::Granted => {
+        Self::log_perm_access(name, info);
+        (Ok(()), false, false)
+      }
+      PermissionState::Prompt if prompt => {
+        let msg = format!(
+          "{} access{}",
+          name,
+          info()
+            .map(|info| { format!(" to {info}") })
+            .unwrap_or_default(),
+        );
+        match permission_prompt2(&msg, name, api_name, true, stack) {
           PromptResponse::Allow => {
             Self::log_perm_access(name, info);
             (Ok(()), true, false)
@@ -428,6 +467,41 @@ impl<TQuery: QueryDescriptor> UnaryPermission<TQuery> {
         }
       } else {
         self.insert_prompt_denied(desc.map(|d| d.as_deny()));
+      }
+    }
+    result
+  }
+
+  fn check_desc2(
+    &mut self,
+    desc: Option<&T>,
+    assert_non_partial: bool,
+    api_name: Option<&str>,
+    get_display_name: impl Fn() -> Option<String>,
+    stack: Option<&str>,
+  ) -> Result<(), AnyError> {
+    skip_check_if_is_permission_fully_granted!(self);
+    let (result, prompted, is_allow_all) = self
+      .query_desc(desc, AllowPartial::from(!assert_non_partial))
+      .check3(
+        T::flag_name(),
+        api_name,
+        || match get_display_name() {
+          Some(display_name) => Some(display_name),
+          None => desc.map(|d| format!("\"{}\"", d.name())),
+        },
+        self.prompt,
+        stack,
+      );
+    if prompted {
+      if result.is_ok() {
+        if is_allow_all {
+          self.insert_granted(None);
+        } else {
+          self.insert_granted(desc.cloned());
+        }
+      } else {
+        self.insert_prompt_denied(desc.cloned());
       }
     }
     result
@@ -1695,6 +1769,22 @@ impl UnaryPermission<SysDescriptor> {
     self.check_desc(Some(kind), false, api_name)
   }
 
+  pub fn check2(
+    &mut self,
+    kind: &str,
+    api_name: Option<&str>,
+    stack: Option<&str>,
+  ) -> Result<(), AnyError> {
+    skip_check_if_is_permission_fully_granted!(self);
+    self.check_desc2(
+      Some(&SysDescriptor(kind.to_string())),
+      false,
+      api_name,
+      || None,
+      stack,
+    )
+  }
+
   pub fn check_all(&mut self) -> Result<(), AnyError> {
     skip_check_if_is_permission_fully_granted!(self);
     self.check_desc(None, false, None)
@@ -2409,6 +2499,16 @@ impl PermissionsContainer {
       &self.descriptor_parser.parse_sys_descriptor(kind)?,
       Some(api_name),
     )
+  }
+
+  #[inline(always)]
+  pub fn check_sys2(
+    &self,
+    kind: &str,
+    api_name: &str,
+    stack: Option<&str>,
+  ) -> Result<(), AnyError> {
+    self.0.lock().sys.check2(kind, Some(api_name), stack)
   }
 
   #[inline(always)]
