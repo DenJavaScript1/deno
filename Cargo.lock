@@ -1801,6 +1801,7 @@ dependencies = [
  "deno_core",
  "deno_permissions",
  "deno_tls",
+ "libc",
  "pin-project",
  "rustls-tokio-stream",
  "serde",
@@ -1809,6 +1810,7 @@ dependencies = [
  "tokio",
  "trust-dns-proto",
  "trust-dns-resolver",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
